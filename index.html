@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Chess-like Game</title>
+    <style>
+      body {
+        background-color: #1c1c1c;
+        color: #ffffff;
+        font-family: Arial, sans-serif;
+        text-align: center;
+      }
+      header {
+        margin-top: 20px;
+        font-size: xx-large;
+        color: #ffd700;
+      }
+      #game-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      #game-board {
+        justify-content: center;
+        display: grid;
+        grid-template-columns: repeat(5, 50px);
+        grid-template-rows: repeat(5, 50px);
+        grid-gap: 1px;
+        background-color: #333;
+        padding: 5px;
+        margin-top: 20px;
+      }
+      .cell {
+        width: 50px;
+        height: 50px;
+        background-color: #2d2d2d;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 14px;
+        color: #ffffff;
+      }
+      .cell[data-color="A"] {
+        background-color: #505050;
+      }
+      .cell[data-color="B"] {
+        background-color: #2a2a2a;
+      }
+      #controls {
+        margin-top: 20px;
+      }
+      #move-input,
+      #setup-input {
+        padding: 5px;
+        width: 200px;
+        margin-right: 10px;
+        background-color: #333;
+        color: #ffffff;
+        border: 1px solid #555;
+        border-radius: 5px;
+      }
+      #move-button,
+      #setup-button {
+        padding: 5px 10px;
+        background-color: #444;
+        color: #ffffff;
+        border: none;
+        cursor: pointer;
+        border-radius: 5px;
+      }
+      #move-button:hover,
+      #setup-button:hover {
+        background-color: #555;
+      }
+      #message {
+        margin-top: 20px;
+        font-size: 18px;
+        color: #ffd700;
+      }
+      #container-move-history {
+        justify-content: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      #move-history {
+        margin-top: 20px;
+        width: 300px;
+        text-align: center;
+        background-color: #2d2d2d;
+        padding: 10px;
+        border-radius: 5px;
+        border: 1px solid #555;
+      }
+      h2 {
+        color: #ffd700;
+      }
+      .selected {
+        border: 2px solid #ffd700;
+      }
+      .possible-move {
+        background-color: rgba(255, 255, 0, 0.3) !important;
+        cursor: pointer;
+      }
+      #piece-movement-guide {
+        background-color: #2d2d2d;
+        padding: 15px;
+        border-radius: 5px;
+        border: 1px solid #555;
+        width: 300px;
+        margin-top: 20px;
+        margin-bottom: 20px;
+      }
+      #piece-movement-guide ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      #piece-movement-guide li {
+        margin-bottom: 10px;
+      }
+      #piece-movement-guide span {
+        font-weight: bold;
+        color: #ffd700;
+      }
+      #wait-message {
+        margin: 2vh;
+        font-size: large;
+      }
+    </style>
+  </head>
+  <body>
+    <header>Chess 5x5</header>
+    <div id="wait-message">Waiting for opponent...</div>
+    <div id="setup-container">
+      <h2>Set up your characters</h2>
+      <p>
+        Enter 5 characters in order: P for Pawn, H for Hero1, 2 for Hero2, 3 for
+        Hero3
+      </p>
+      <p>Example: PHH23 (1 Pawn, 2 Hero1s, 1 Hero2, 1 Hero3)</p>
+      <input
+        type="text"
+        id="setup-input"
+        maxlength="5"
+        placeholder="e.g., PHH23"
+      />
+      <button id="setup-button">Submit Setup</button>
+    </div>
+    <div id="game-container">
+      <div id="game-board"></div>
+      <!-- <div id="controls">
+            <input type="text" id="move-input" placeholder="Enter move (e.g., P1:L)">
+            <button id="move-button">Make Move</button>
+        </div> -->
+      <div id="message"></div>
+      <div id="container-move-history">
+        <div id="move-history">
+          <h2>Move History</h2>
+          <ul id="history-list"></ul>
+        </div>
+
+        <div id="piece-movement-guide">
+          <h2>Piece Movement Guide</h2>
+          <ul>
+            <li>
+              <span>Pawn (P):</span> Moves 1 step in any direction (↑ ↓ ← →)
+            </li>
+            <li>
+              <span>Hero1 (H1):</span> Moves 2 steps in any direction (↑ ↑ ↓ ↓ ←
+              ← → →)
+            </li>
+            <li><span>Hero2 (H2):</span> Moves 2 steps diagonally (↖ ↗ ↙ ↘)</li>
+            <li>
+              <span>Hero3 (H3):</span> Moves 2 steps in one direction, then 1
+              step perpendicular (All directions)
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <script>
+      const socket = new WebSocket("ws://localhost:8080");
+      let playerIndex, gameId;
+      let selectedPiece = null;
+      let possibleMoves = [];
+      socket.onopen = () => {
+        socket.send(JSON.stringify({ type: "join" }));
+      };
+
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        handleServerMessage(data);
+      };
+
+      function handleServerMessage(data) {
+        switch (data.type) {
+          case "wait":
+            document.getElementById("wait-message").style.display = "block";
+            break;
+          case "gameStart":
+            document.getElementById("wait-message").style.display = "none";
+            document.getElementById("setup-container").style.display = "block";
+            playerIndex = data.playerIndex;
+            gameId = data.gameId;
+            break;
+          case "setupComplete":
+            document.getElementById("setup-container").style.display = "none";
+            document.getElementById("wait-message").textContent =
+              "Waiting for opponent to complete setup...";
+            document.getElementById("wait-message").style.display = "block";
+            break;
+          case "gameReady":
+          case "gameState":
+            document.getElementById("wait-message").style.display = "none";
+            document.getElementById("game-container").style.display = "block";
+            renderGameState(data.state, data.playerIndex);
+            break;
+          case "error":
+            showMessage(data.message);
+            break;
+          case "gameOver":
+            showMessage(`Game Over! Winner: ${data.winner}`);
+            break;
+        }
+      }
+
+      function renderGameState(state, viewingPlayerIndex) {
+        const board = document.getElementById("game-board");
+        board.innerHTML = "";
+        let boardArray = state.board;
+
+        if (viewingPlayerIndex === 1) {
+          boardArray = boardArray
+            .slice()
+            .reverse()
+            .map((row) => row.slice().reverse());
+        }
+
+        for (let i = 0; i < 5; i++) {
+          for (let j = 0; j < 5; j++) {
+            const cell = document.createElement("div");
+            cell.className = "cell";
+            const piece = boardArray[i][j];
+            cell.textContent = piece || "";
+
+            if (piece) {
+              cell.setAttribute(
+                "data-color",
+                piece.startsWith("A-") ? "A" : "B"
+              );
+              cell.setAttribute("data-piece", piece);
+            }
+
+            cell.addEventListener("click", () => handleCellClick(i, j, piece));
+
+            board.appendChild(cell);
+          }
+        }
+        const historyList = document.getElementById("history-list");
+        historyList.innerHTML = "";
+        state.moveHistory.forEach((move) => {
+          const moveEntry = document.createElement("li");
+          moveEntry.textContent = move;
+          historyList.appendChild(moveEntry);
+        });
+        showMessage(
+          state.currentPlayer === viewingPlayerIndex
+            ? "Your turn"
+            : "Opponent's turn"
+        );
+      }
+
+      function showMessage(message) {
+        document.getElementById("message").textContent = message;
+      }
+
+      document.getElementById("setup-button").addEventListener("click", () => {
+        const setup = document
+          .getElementById("setup-input")
+          .value.toUpperCase()
+          .split("");
+        if (setup.length !== 5) {
+          showMessage("Please enter exactly 5 characters");
+          return;
+        }
+        if (!setup.every((char) => ["P", "H", "2", "3"].includes(char))) {
+          showMessage("Invalid characters. Use only P, H, 2, and 3");
+          return;
+        }
+        socket.send(JSON.stringify({ type: "setup", gameId, setup }));
+        document.getElementById("setup-container").style.display = "none";
+        document.getElementById("wait-message").textContent =
+          "Setup complete. Waiting for opponent...";
+        document.getElementById("wait-message").style.display = "block";
+      });
+
+      document.getElementById("move-button").addEventListener("click", () => {
+        const move = document.getElementById("move-input").value.toUpperCase();
+        const [character, direction] = move.split(":");
+        if (!character || !direction) {
+          showMessage(
+            "Invalid move format. Use <character>:<direction> (e.g., P1:F, H1:F, 21:FL, 31:FR)"
+          );
+          return;
+        }
+        socket.send(
+          JSON.stringify({ type: "move", gameId, character, move: direction })
+        );
+        document.getElementById("move-input").value = "";
+      });
+      function handleCellClick(row, col, piece) {
+        if (selectedPiece) {
+          if (
+            possibleMoves.some((move) => move.row === row && move.col === col)
+          ) {
+            executeMoveUI(selectedPiece, row, col);
+          } else {
+            clearSelection();
+          }
+        } else if (piece && piece.startsWith(playerIndex === 0 ? "A-" : "B-")) {
+          selectPiece(piece, row, col);
+        }
+      }
+
+      function selectPiece(piece, row, col) {
+        selectedPiece = { piece, row, col };
+        document
+          .querySelectorAll(".cell")
+          .forEach((cell) => cell.classList.remove("selected"));
+        const selectedCell = document.querySelector(
+          `.cell[data-piece="${piece}"]`
+        );
+        if (selectedCell) {
+          selectedCell.classList.add("selected");
+        }
+        calculatePossibleMoves(piece, row, col);
+      }
+
+      function calculatePossibleMoves(piece, row, col) {
+        clearPossibleMoves();
+        const [prefix, type] = piece.split("-");
+        const charType = type.charAt(0);
+        const moves = getPossibleMoves(charType, row, col, prefix === "A");
+        possibleMoves = moves.filter((move) => {
+          const cellPiece = document
+            .querySelector(`.cell:nth-child(${move.row * 5 + move.col + 1})`)
+            .getAttribute("data-piece");
+          return !cellPiece || !cellPiece.startsWith(prefix);
+        });
+        possibleMoves.forEach((move) => {
+          const cell = document.querySelector(
+            `.cell:nth-child(${move.row * 5 + move.col + 1})`
+          );
+          if (cell) {
+            cell.classList.add("possible-move");
+          }
+        });
+      }
+
+      function getPossibleMoves(type, row, col, isPlayerA) {
+        const moves = [];
+        const directions = {
+          P: [
+            [0, 1],
+            [0, -1],
+            [1, 0],
+            [-1, 0],
+          ],
+          H: [
+            [0, 2],
+            [0, -2],
+            [2, 0],
+            [-2, 0],
+          ],
+          2: [
+            [2, 2],
+            [2, -2],
+            [-2, 2],
+            [-2, -2],
+          ],
+          3: [
+            [2, 1],
+            [2, -1],
+            [-2, 1],
+            [-2, -1],
+            [1, 2],
+            [1, -2],
+            [-1, 2],
+            [-1, -2],
+          ],
+        };
+
+        if (!directions[type]) {
+          console.error(`Invalid piece type: ${type}`);
+          return moves;
+        }
+
+        directions[type].forEach(([dx, dy]) => {
+          const newRow = row + (isPlayerA ? dy : -dy);
+          const newCol = col + dx;
+          if (newRow >= 0 && newRow < 5 && newCol >= 0 && newCol < 5) {
+            moves.push({ row: newRow, col: newCol });
+          }
+        });
+
+        return moves;
+      }
+
+      function clearPossibleMoves() {
+        document
+          .querySelectorAll(".possible-move")
+          .forEach((cell) => cell.classList.remove("possible-move"));
+        possibleMoves = [];
+      }
+
+      function clearSelection() {
+        selectedPiece = null;
+        document
+          .querySelectorAll(".selected")
+          .forEach((cell) => cell.classList.remove("selected"));
+        clearPossibleMoves();
+      }
+
+      function executeMoveUI(selectedPiece, newRow, newCol) {
+        const { piece, row: oldRow, col: oldCol } = selectedPiece;
+        const [prefix, typeAndNumber] = piece.split("-");
+        const direction = getMoveDirection(
+          oldRow,
+          oldCol,
+          newRow,
+          newCol,
+          typeAndNumber[0],
+          prefix === "A"
+        );
+
+        if (direction) {
+          socket.send(
+            JSON.stringify({
+              type: "move",
+              gameId,
+              character: typeAndNumber,
+              move: direction,
+            })
+          );
+          clearSelection();
+        } else {
+          showMessage("Invalid move");
+        }
+      }
+      function getMoveDirection(
+        oldRow,
+        oldCol,
+        newRow,
+        newCol,
+        type,
+        isPlayerA
+      ) {
+        const dx = newCol - oldCol;
+        const dy = isPlayerA ? oldRow - newRow : newRow - oldRow;
+
+        switch (type) {
+          case "P":
+            if (Math.abs(dx) + Math.abs(dy) !== 1) return null;
+            if (dx === 0) return dy > 0 ? "F" : "B";
+            if (dy === 0) return dx > 0 ? "R" : "L";
+            break;
+          case "H":
+            if (Math.abs(dx) + Math.abs(dy) !== 2) return null;
+            if (dx === 0) return dy > 0 ? "F" : "B";
+            if (dy === 0) return dx > 0 ? "R" : "L";
+            break;
+          case "2":
+            if (Math.abs(dx) !== 2 || Math.abs(dy) !== 2) return null;
+            return `${dy > 0 ? "F" : "B"}${dx > 0 ? "R" : "L"}`;
+          case "3":
+            if (
+              (Math.abs(dx) === 2 && Math.abs(dy) === 1) ||
+              (Math.abs(dx) === 1 && Math.abs(dy) === 2)
+            ) {
+              if (Math.abs(dx) > Math.abs(dy)) {
+                return `${dx > 0 ? "R" : "L"}${dy > 0 ? "F" : "B"}`;
+              } else {
+                return `${dy > 0 ? "F" : "B"}${dx > 0 ? "R" : "L"}`;
+              }
+            }
+            return null;
+        }
+        return null;
+      }
+    </script>
+  </body>
+</html>
