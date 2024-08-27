@@ -6,9 +6,10 @@
 
 <h2>Project Screenshots:</h2>
 
-<img src="https://github.com/shubhbansal9/hitwicket-sde-assignment/blob/main/assets/project-ss-1.png" alt="project-screenshot" width="400"/>
-
-<img src="https://github.com/shubhbansal9/hitwicket-sde-assignment/blob/main/assets/project-ss-2.png" alt="project-screenshot" width="400"/>
+<p align="center">
+  <img src="https://github.com/shubhbansal9/hitwicket-sde-assignment/blob/main/assets/project-ss-1.png" alt="project-screenshot-1" width="400"/>
+  <img src="https://github.com/shubhbansal9/hitwicket-sde-assignment/blob/main/assets/project-ss-2.png" alt="project-screenshot-2" width="800"/>
+</p>
 
   
 <h2>🧐 Features</h2>
