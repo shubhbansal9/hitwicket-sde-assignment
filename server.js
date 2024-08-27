@@ -50,7 +50,7 @@ class Game {
       this.characters.set(fullName, { row, col, type: char });
     });
     this.setupCount++;
-    console.log(`Player ${playerIndex} setup complete:`, this.characters);
+    // console.log(`Player ${playerIndex} setup complete:`, this.characters);
 
     if (this.setupCount === 2) {
       this.setupPhase = false;
@@ -61,38 +61,47 @@ class Game {
   makeMove(player, characterName, move) {
     if (player === 1) {
       switch (move) {
-        case "BR":
-          move = "FR";
-          break;
-        case "BL":
-          move = "FL";
-          break;
-        case "FR":
-          move = "BR";
-          break;
-        case "FL":
-          move = "BL";
-          break;
-        case "RB":
-          move = "RF";
-          break;
-        case "RF":
-          move = "RB";
-          break;
-        case "LF":
-          move = "LB";
-          break;
-        case "L":
-          move = "R";
-          break;
-        case "R":
-          move = "L";
-          break;
+          case "BR":
+              move = "FR";
+              break;
+          case "BL":
+              move = "FL";
+              break;
+          case "FR":
+              move = "BR";
+              break;
+          case "FL":
+              move = "BL";
+              break;
+          case "RB":
+              move = "RF";
+              break;
+          case "RF":
+              move = "RB";
+              break;
+          case "LF":
+              move = "LB";
+              break;
+          case "LB":
+              move = "LF";
+              break;
+          default:
+              if (characterName.startsWith("P")) {
+                  switch (move) {
+                      case "L":
+                          move = "R";
+                          break;
+                      case "R":
+                          move = "L";
+                          break;
+                  }
+              }
+              break;
       }
     }
-    console.log(
-      `Attempting move: Player ${player}, Character ${characterName}, Move ${move}`
-    );
+    // console.log(
+    //   `Attempting move: Player ${player}, Character ${characterName}, Move ${move}`
+    // );
     if (player !== this.currentPlayerIndex) {
       return { success: false, message: "Not your turn" };
     }
@@ -102,8 +111,8 @@ class Game {
     const character = this.characters.get(fullCharacterName);
 
     if (!character) {
-      console.log(`Character not found: ${fullCharacterName}`);
-      console.log("Available characters:", Array.from(this.characters.keys()));
+      // console.log(`Character not found: ${fullCharacterName}`);
+      // console.log("Available characters:", Array.from(this.characters.keys()));
       return {
         success: false,
         message: `Character not found: ${characterName}`,
@@ -146,10 +155,10 @@ class Game {
       character.type === "3"
     ) {
       const pathCells = this.getPathCells(character.row, character.col, dx, dy);
-      console.log(`Path cells for ${character.type}:`, pathCells);
+      // console.log(`Path cells for ${character.type}:`, pathCells);
       for (const [row, col] of pathCells) {
         if (row < 0 || row >= 5 || col < 0 || col >= 5) {
-          console.log(`Move out of bounds: (${row}, ${col})`);
+          // console.log(`Move out of bounds: (${row}, ${col})`);
           return { success: false, message: "Move out of bounds" };
         }
         const targetChar = this.board[row][col];
@@ -186,13 +195,29 @@ class Game {
     character.row = newRow;
     character.col = newCol;
     const playerPrefix = player === 0 ? "A" : "B";
-    this.moveHistory.push(`${playerPrefix}- ${characterName}:${move}`);
+    const correctedMove = this.correctMoveForHistory(player, characterName, move);
+    this.moveHistory.push(`${playerPrefix}- ${characterName}:${correctedMove}`);
 
     this.currentPlayerIndex = 1 - this.currentPlayerIndex;
-    console.log(
-      `Move successful: ${fullCharacterName} to (${newRow}, ${newCol})`
-    );
+    // console.log(
+    //   `Move successful: ${fullCharacterName} to (${newRow}, ${newCol})`
+    // );
     return { success: true };
+  }
+  correctMoveForHistory(player, characterName, move) {
+    if (player === 1) {
+      const charType = characterName[0];
+      if (charType === 'P' || charType === 'H') {
+        switch (move) {
+          case 'F': return 'B';
+          case 'B': return 'F';
+          case 'L': return 'R';
+          case 'R': return 'L';
+          default: return move;
+        }
+      }
+    }
+    return move;
   }
   getPawnMove(move, player) {
     switch (move) {
@@ -222,7 +247,7 @@ class Game {
   }
 
   getHero2Move(move, player) {
-    console.log(`getHero2Move called with move: ${move}, player: ${player}`);
+    // console.log(`getHero2Move called with move: ${move}, player: ${player}`);
     let result;
     switch (move) {
       case "FL":
@@ -278,10 +303,10 @@ class Game {
       col += dx / steps;
       cells.push([Math.round(row), Math.round(col)]);
     }
-    console.log(
-      `getPathCells: start=(${startRow},${startCol}), dx=${dx}, dy=${dy}, result:`,
-      cells
-    );
+    // console.log(
+    //   `getPathCells: start=(${startRow},${startCol}), dx=${dx}, dy=${dy}, result:`,
+    //   cells
+    // );
     return cells;
   }
 
@@ -410,7 +435,7 @@ function handleMove(ws, data) {
   }
 
   const playerIndex = game.players.indexOf(ws);
-  console.log(`Received move from player ${playerIndex}:`, data);
+  // console.log(`Received move from player ${playerIndex}:`, data);
   const result = game.makeMove(playerIndex, data.character, data.move);
 
   if (result.success) {

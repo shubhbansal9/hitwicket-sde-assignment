@@ -170,12 +170,12 @@
               <span>Pawn (P):</span> Moves 1 step in any direction (↑ ↓ ← →)
             </li>
             <li>
-              <span>Hero1 (H1):</span> Moves 2 steps in any direction (↑ ↑ ↓ ↓ ←
+              <span>Hero1 (H):</span> Moves 2 steps in any direction (↑ ↑ ↓ ↓ ←
               ← → →)
             </li>
-            <li><span>Hero2 (H2):</span> Moves 2 steps diagonally (↖ ↗ ↙ ↘)</li>
+            <li><span>Hero2 (2):</span> Moves 2 steps diagonally (↖ ↗ ↙ ↘)</li>
             <li>
-              <span>Hero3 (H3):</span> Moves 2 steps in one direction, then 1
+              <span>Hero3 (3):</span> Moves 2 steps in one direction, then 1
               step perpendicular (All directions)
             </li>
           </ul>
@@ -261,12 +261,14 @@
           }
         }
         const historyList = document.getElementById("history-list");
-        historyList.innerHTML = "";
-        state.moveHistory.forEach((move) => {
-          const moveEntry = document.createElement("li");
-          moveEntry.textContent = move;
-          historyList.appendChild(moveEntry);
-        });
+historyList.innerHTML = "";
+state.moveHistory.forEach((move) => {
+    let modifiedMove = move;
+    const moveEntry = document.createElement("li");
+    moveEntry.textContent = modifiedMove;
+    historyList.appendChild(moveEntry);
+});
+
         showMessage(
           state.currentPlayer === viewingPlayerIndex
             ? "Your turn"
